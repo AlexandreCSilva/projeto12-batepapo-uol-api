@@ -43,11 +43,23 @@ server.post('/participants', async (req, res) => {
                 res.status(422).send('Nome inválido');
             } else {
                 await db.collection('users').insertOne({name: user.name, lastStatus: Date.now()});
-                console.log(dayjs(Date.now()).format("HH:MM:ss"))
                 await db.collection('messages').insertOne({from: 'xxx', to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs(Date.now()).format("HH:MM:ss")});
                 res.status(201);
             }
         }
+    } catch (error) {
+        res.status(500).send('Erro do servidor');
+    }
+})
+
+server.get('/participants', async (req, res) => {
+    try {
+        const users = await db.collection('users').find().toArray();
+        const usersSent = [];
+        users.forEach((user) => {
+            usersSent.push({ name: user.name, lastStatus: user.lastStatus});
+        })
+        res.status(201).send(usersSent);
     } catch (error) {
         res.status(500).send('Erro do servidor');
     }
