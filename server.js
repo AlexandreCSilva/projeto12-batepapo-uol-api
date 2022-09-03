@@ -160,4 +160,19 @@ server.post('/status', async (req, res) => {
     }
 })
 
+setInterval(async () => {
+    const users = await db.collection('users').find().toArray();
+    const time = Date.now();
+
+    users.forEach(async (user) => {
+        if (dayjs(time).diff(dayjs(user.lastStatus)) >= 10000){
+            await db.collection('users').deleteOne({ _id: user._id});
+
+            const message = {from: user.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: dayjs(time).format("HH:MM:ss")}
+
+            await db.collection('messages').insertOne(message);
+        }
+    })
+}, 15000);
+
 server.listen(5000, () => {console.log('Server on')})
