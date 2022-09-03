@@ -92,7 +92,7 @@ server.get('/messages', async (req, res) => {
             messages.forEach((message) => {
                 if (message.type === 'message' || message.type === 'status'){
                     messagesSent.push({from: message.from, to: message.to, text: message.text, type: message.type, time: message.time});
-                } else if (message.to === user){
+                } else if (message.to === user || message.from === user){
                     messagesSent.push({from: message.from, to: message.to, text: message.text, type: message.type, time: message.time});
                 }
             })
@@ -106,7 +106,7 @@ server.get('/messages', async (req, res) => {
             if (messages[i]){
                 if (messages[i].type === 'message' || messages[i].type === 'status'){
                     messagesSent.unshift({from: messages[i].from, to: messages[i].to, text: messages[i].text, type: messages[i].type, time: messages[i].time});
-                } else if (messages[i].to === user){
+                } else if (messages[i].to === user || messages[i].from === user){
                     messagesSent.unshift({from: messages[i].from, to: messages[i].to, text: messages[i].text, type: messages[i].type, time: messages[i].time});
                 }
             }
@@ -119,13 +119,25 @@ server.get('/messages', async (req, res) => {
 })
 
 server.post('/messages', async (req, res) => {
-    const message = req.body;
+    const message = {to: 'Todos', text: 'entra na sala...', type: 'status'};
     const user = req.headers.user;
 
     const users = await db.collection('users').findOne({ name: user});
 
     if (users){
-        console.log(users)
+        const validation = messageSchema.validate(message);
+
+        if (validation.error) {
+            res.status(422).send();
+            return;
+        }
+
+        const time = Date.now();
+        const messageSaved = {from: user, to: message.to, text: message.text, type: message.type, time: dayjs(time).format("HH:MM:ss")};
+        
+        await db.collection('messages').insertOne(messageSaved);
+        
+        res.status(201).send();
     }
 })
 
