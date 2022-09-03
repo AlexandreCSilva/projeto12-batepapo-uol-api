@@ -12,8 +12,14 @@ dayjs.extend(customParseFormat);
 const server = express();
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 const Joi = joi;
+
 const userSchema = joi.object({
     name: joi.string().required()
+});
+const messageSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('message','private_message').required(),
 });
 
 server.use(cors());
@@ -26,35 +32,35 @@ mongoClient.connect().then(() => {
 });
 
 server.post('/participants', async (req, res) => {
-    /* const user = req.body;
-    const validUser = await db.collection('users').deleteMany({});
-
-    console.log(validUser) */
-    
+   
     try {
-        const user = await req.body;
+        const user = req.body;
+        
+       /*  await db.collection('users').deleteMany({})
+        await db.collection('messages').deleteMany({}) */
+        
         const validUser = await db.collection('users').find(user).toArray();
         
         if (validUser.length !== 0){
-            res.status(409).send('O nome já está sendo usado');
+            res.status(409).send();
             return;
         } 
 
         const validation = userSchema.validate(user);
 
         if (validation.error) {
-            res.status(422).send('Nome inválido');
+            res.status(422).send();
             return;
         }
 
         const time =  Date.now();
         const userSaved = {name: user.name, lastStatus: time};
-        const message = {from: user.name, to: 'Todos', text: 'entra na sala...', type: 'message', time: dayjs(time).format("HH:MM:ss")};
+        const message = {from: user.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs(time).format("HH:MM:ss")};
         
         await db.collection('users').insertOne(userSaved);
         await db.collection('messages').insertOne(message);
         
-        res.status(201);
+        res.status(201).send();
         
     } catch (error) {
         res.status(500).send('Erro do servidor');
@@ -70,21 +76,20 @@ server.get('/participants', async (req, res) => {
         })
         res.status(201).send(usersSent);
     } catch (error) {
-        res.status(500).send('Erro do servidor');
+        res.status(500).send();
     }
 })
 
 server.get('/messages', async (req, res) => {
     try {
-        const limit = await req.query.limit;
-        const user = await req.headers.user;
+        const limit = req.query.limit;
+        const user = req.headers.user;
         const messages = await db.collection('messages').find().toArray();
         const messagesSent = [];
 
         if (!limit){
 
             messages.forEach((message) => {
-                console.log(message.to);
                 if (message.type === 'message' || message.type === 'status'){
                     messagesSent.push({from: message.from, to: message.to, text: message.text, type: message.type, time: message.time});
                 } else if (message.to === user){
@@ -93,7 +98,6 @@ server.get('/messages', async (req, res) => {
             })
 
             res.status(201).send(messagesSent);
-            return;
         }
 
         const dif = messages.length - limit -1;
@@ -110,7 +114,49 @@ server.get('/messages', async (req, res) => {
 
         res.status(201).send(messagesSent);
     } catch (error) {
-        res.status(500).send('Erro do servidor');
+        res.status(500).send();
+    }
+})
+
+server.post('/messages', async (req, res) => {
+    const message = req.body;
+    const user = req.headers.user;
+
+    const users = await db.collection('users').findOne({ name: user});
+
+    if (users){
+        console.log(users)
+    }
+})
+
+server.post('/status', async (req, res) => {
+    try {
+        const user = req.headers.user;
+
+        const users = await db.collection('users').findOne({ name: user});
+
+        if (!users){
+            res.status(404).send();
+        }
+
+        const time = Date.now();
+        
+        const updatedStatus = await db.collection('users').updateOne({ _id: users._id },
+            { $set:
+            {
+                    lastStatus: time,
+            }
+            })
+        
+        if (updatedStatus.error) {
+            
+            res.status(500);
+            return;
+        }
+        res.status(201).send();
+
+    } catch (error) {
+        res.status(500).send();
     }
 })
 
