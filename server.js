@@ -224,24 +224,27 @@ server.put('/messages/:messageId', async (req, res) => {
         const messageEdited = { to: stripHtml(req.body.to).result.trim(), text: stripHtml(req.body.text).result.trim(), type: stripHtml(req.body.type).result.trim() };
         const user = stripHtml(req.headers.user).result.trim();
         const message = await db.collection('messages').findOne({ _id: mongoose.Types.ObjectId(messageId) })
-
-        const users = await db.collection('users').findOne({ name: user });
-
-        if (users) {
-            const validation = messageSchema.validate(message);
+        console.log(messageEdited)
+        if (message) {
+            const validation = messageSchema.validate(messageEdited);
 
             if (validation.error) {
                 res.status(422).send();
-                return;
             }
-
-            const time = Date.now();
-            const messageSaved = { from: user, to: message.to, text: message.text, type: message.type, time: dayjs(time).format("HH:MM:ss") };
-
-            await db.collection('messages').insertOne(messageSaved);
-
-            res.status(201).send();
-        }
+            
+            if (message.from === user){
+                const time = Date.now();
+                const messageSaved = { from: user, to: messageEdited.to, text: messageEdited.text, type: messageEdited.type, time: dayjs(time).format("HH:MM:ss") };
+                
+                await db.collection('messages').updateOne({ _id: mongoose.Types.ObjectId(messageId) }, { $set: messageSaved });
+                
+                res.status(201).send();
+            } else {
+                res.status(401).send();
+            }
+        } else {
+            res.status(404).send();
+        } 
     } catch (error) {
         res.status(500).send(error.message);
     }
