@@ -5,6 +5,7 @@ import joi from 'joi';
 import dayjs from "dayjs";
 import customParseFormat from 'dayjs/plugin/customParseFormat.js';
 import { MongoClient } from "mongodb";
+import { stripHtml } from "string-strip-html";
 dotenv.config();
 
 dayjs.extend(customParseFormat);
@@ -34,7 +35,7 @@ mongoClient.connect().then(() => {
 server.post('/participants', async (req, res) => {
    
     try {
-        const user = req.body;
+        const user = { name: stripHtml( req.body.name).result.trim()};
         
        /*  await db.collection('users').deleteMany({})
         await db.collection('messages').deleteMany({}) */
@@ -83,7 +84,7 @@ server.get('/participants', async (req, res) => {
 server.get('/messages', async (req, res) => {
     try {
         const limit = req.query.limit;
-        const user = req.headers.user;
+        const user = stripHtml( req.headers.user).result.trim();
         const messages = await db.collection('messages').find().toArray();
         const messagesSent = [];
 
@@ -119,8 +120,8 @@ server.get('/messages', async (req, res) => {
 })
 
 server.post('/messages', async (req, res) => {
-    const message = {to: 'Todos', text: 'entra na sala...', type: 'status'};
-    const user = req.headers.user;
+    const message = { to: stripHtml( req.body.to ).result.trim(), text: stripHtml( req.body.text ).result.trim(), type: stripHtml( req.body.type ).result.trim()};
+    const user = stripHtml( req.headers.user).result.trim();
 
     const users = await db.collection('users').findOne({ name: user});
 
@@ -143,7 +144,7 @@ server.post('/messages', async (req, res) => {
 
 server.post('/status', async (req, res) => {
     try {
-        const user = req.headers.user;
+        const user = stripHtml( req.headers.user).result.trim();
 
         const users = await db.collection('users').findOne({ name: user});
 
